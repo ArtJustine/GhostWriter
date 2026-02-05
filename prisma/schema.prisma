@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model UserConfig {
+  id              String   @id @default(cuid())
+  businessUrl     String?
+  targetAudience  String?
+  onboarded       Boolean  @default(false)
+  personas        Persona[]
+  contents        Content[]
+  leads           Lead[]
+}
+
+model Persona {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  userConfigId String
+  userConfig  UserConfig @relation(fields: [userConfigId], references: [id])
+  contents    Content[]
+}
+
+model Content {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  type        String   // 'ARTICLE', 'EMAIL', 'SCRIPT'
+  status      String   @default("PENDING") // 'PENDING', 'READY'
+  personaId   String?
+  persona     Persona?  @relation(fields: [personaId], references: [id])
+  userConfigId String
+  userConfig  UserConfig @relation(fields: [userConfigId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  position    String?
+  company     String?
+  validated   Boolean  @default(false)
+  userConfigId String
+  userConfig  UserConfig @relation(fields: [userConfigId], references: [id])
+  createdAt   DateTime @default(now())
+}
