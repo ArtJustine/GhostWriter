@@ -4,23 +4,51 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Zap, Mic, Search, Globe, FileAudio, ArrowUpRight, BarChart3, Radio } from "lucide-react";
-
-const tasks = [
-    {
-        title: "Podcast Scripting",
-        description: "Generate scripts for your next episode based on Medium articles.",
-        icon: Mic,
-        status: "READY",
-    },
-    {
-        title: "SEO Analysis",
-        description: "Real-time ranking analysis for your top performing keywords.",
-        icon: BarChart3,
-        status: "ACTIVE",
-    }
-];
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 export default function SEOPodcastPage() {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = async () => {
+        const configId = localStorage.getItem("ghostwriter_config_id");
+        if (!configId) return;
+
+        try {
+            const response = await fetch(`/api/dashboard?configId=${configId}`);
+            const result = await response.json();
+            if (result.success) {
+                setData(result);
+            }
+        } catch (error) {
+            console.error("Fetch error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const tasks = [
+        {
+            title: "Podcast Scripting",
+            description: `Generate scripts based on your ${data?.config?.contents?.filter((c: any) => c.type === 'ARTICLE').length || 0} articles.`,
+            icon: Mic,
+            status: "READY",
+        },
+        {
+            title: "SEO Analysis",
+            description: `Real-time ranking analysis for your content targeting ${data?.config?.targetAudience}.`,
+            icon: BarChart3,
+            status: "ACTIVE",
+        }
+    ];
+
+    if (loading) return <div className="flex items-center justify-center h-96"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -28,7 +56,7 @@ export default function SEOPodcastPage() {
                     <h1 className="text-3xl font-bold tracking-tight mb-2">SEO & Podcast</h1>
                     <p className="text-muted-foreground">Automate your audio content and search engine optimization.</p>
                 </div>
-                <Button className="bg-primary hover:bg-primary/90">
+                <Button className="bg-primary hover:bg-primary/90" onClick={() => toast.info("Audit started...")}>
                     <Zap className="w-4 h-4 mr-2" /> Run SEO Audit
                 </Button>
             </div>
@@ -51,7 +79,11 @@ export default function SEOPodcastPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <Button variant="secondary" className="w-full bg-white/5 group-hover:bg-primary group-hover:text-white transition-all">
+                            <Button
+                                variant="secondary"
+                                className="w-full bg-white/5 group-hover:bg-primary group-hover:text-white transition-all"
+                                onClick={() => toast.success(`${task.title} tool initialized.`)}
+                            >
                                 Open Tool
                                 <ArrowUpRight className="ml-2 w-4 h-4" />
                             </Button>
@@ -66,24 +98,10 @@ export default function SEOPodcastPage() {
                     <CardDescription>Generated audio and scripts for your personas.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        {[1, 2].map((i) => (
-                            <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
-                                        <Radio className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium">The Future of AI Agents - Ep {i}</p>
-                                        <p className="text-xs text-muted-foreground">12:45 • Generated 2 days ago</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button variant="ghost" size="sm">Review Script</Button>
-                                    <Button variant="outline" size="sm" className="border-white/10">Listen</Button>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="p-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                        <Mic className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
+                        <p className="text-muted-foreground italic">No podcast episodes generated yet.</p>
+                        <Button variant="ghost" className="mt-4 text-primary" onClick={() => toast.info("Opening script builder...")}>Create First Script</Button>
                     </div>
                 </CardContent>
             </Card>

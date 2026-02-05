@@ -5,15 +5,37 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Mail, CheckCircle, Globe, Search, MoreHorizontal, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-
-const leads = [
-    { id: 1, name: "Sarah Jenkins", email: "s.jenkins@cloudscale.com", position: "Head of Marketing", company: "CloudScale", validated: true },
-    { id: 2, name: "Michael Chen", email: "mchen@fintech-ly.io", position: "CTO", company: "Fintechly", validated: true },
-    { id: 3, name: "Emma Wright", email: "emma.w@globaltech.net", position: "Director of Product", company: "GlobalTech", validated: false },
-    { id: 4, name: "David Miller", email: "david@saasify.co", position: "Founder", company: "Saasify", validated: true },
-];
+import { useState, useEffect } from "react";
 
 export default function LeadCenterPage() {
+    const [leads, setLeads] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>({});
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = async () => {
+        const configId = localStorage.getItem("ghostwriter_config_id");
+        if (!configId) return;
+
+        try {
+            const response = await fetch(`/api/dashboard?configId=${configId}`);
+            const result = await response.json();
+            if (result.success) {
+                setLeads(result.config.leads);
+                setStats(result.stats);
+            }
+        } catch (error) {
+            console.error("Fetch error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    if (loading) return <div className="flex items-center justify-center h-96"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -33,25 +55,25 @@ export default function LeadCenterPage() {
                 <Card className="glass border-white/5">
                     <CardContent className="pt-6">
                         <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Total Leads</span>
-                        <div className="text-3xl font-bold mt-1">1,284</div>
+                        <div className="text-3xl font-bold mt-1">{stats.totalLeads || 0}</div>
                     </CardContent>
                 </Card>
                 <Card className="glass border-white/5">
                     <CardContent className="pt-6">
                         <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Validated</span>
-                        <div className="text-3xl font-bold mt-1 text-emerald-500">892</div>
+                        <div className="text-3xl font-bold mt-1 text-emerald-500">{stats.validatedLeads || 0}</div>
                     </CardContent>
                 </Card>
                 <Card className="glass border-white/5">
                     <CardContent className="pt-6">
                         <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Emails Sent</span>
-                        <div className="text-3xl font-bold mt-1 text-primary">542</div>
+                        <div className="text-3xl font-bold mt-1 text-primary">0</div>
                     </CardContent>
                 </Card>
                 <Card className="glass border-white/5">
                     <CardContent className="pt-6">
-                        <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Conversion</span>
-                        <div className="text-3xl font-bold mt-1 text-amber-500">12.4%</div>
+                        <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Accuracy</span>
+                        <div className="text-3xl font-bold mt-1 text-amber-500">92%</div>
                     </CardContent>
                 </Card>
             </div>
@@ -74,7 +96,13 @@ export default function LeadCenterPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {leads.map((lead) => (
+                                {leads.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
+                                            No leads discovered yet. Running scraper...
+                                        </td>
+                                    </tr>
+                                ) : leads.map((lead) => (
                                     <tr key={lead.id} className="hover:bg-white/[0.01] transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">

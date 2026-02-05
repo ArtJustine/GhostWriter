@@ -37,14 +37,30 @@ export default function OnboardingPage() {
     };
 
     const handleSubmit = async () => {
-        toast.loading("Setting up your workspace...");
+        const loadingToast = toast.loading("Setting up your workspace...");
 
-        // Simulate API call
-        setTimeout(() => {
-            toast.dismiss();
-            toast.success("Workspace ready!");
-            router.push("/dashboard");
-        }, 2000);
+        try {
+            const response = await fetch("/api/onboarding", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Store configId in localStorage for this session since we don't have Auth/Cookies yet
+                localStorage.setItem("ghostwriter_config_id", data.configId);
+                toast.dismiss(loadingToast);
+                toast.success("Workspace initialized!");
+                router.push("/dashboard");
+            } else {
+                throw new Error(data.error || "Failed to initialize");
+            }
+        } catch (error: any) {
+            toast.dismiss(loadingToast);
+            toast.error(error.message);
+        }
     };
 
     return (

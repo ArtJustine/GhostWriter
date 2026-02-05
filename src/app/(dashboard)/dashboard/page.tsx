@@ -16,19 +16,72 @@ import {
     ThumbsUp
 } from "lucide-react";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 export default function DashboardPage() {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = async () => {
+        const configId = localStorage.getItem("ghostwriter_config_id");
+        if (!configId) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/dashboard?configId=${configId}`);
+            const result = await response.json();
+            if (result.success) {
+                setData(result);
+            }
+        } catch (error) {
+            console.error("Fetch error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         toast.success("Copied to clipboard!");
     };
 
+    const approveContent = async (id: string) => {
+        try {
+            const res = await fetch("/api/content/review", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contentId: id, action: "approve" })
+            });
+            if (res.ok) {
+                toast.success("Content marked as READY");
+                fetchData();
+            }
+        } catch (e) {
+            toast.error("Failed to approve");
+        }
+    };
+
+    if (loading) return <div className="flex items-center justify-center h-96"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+
+    if (!data) return (
+        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <p className="text-muted-foreground">No workspace configuration found.</p>
+            <Button onClick={() => window.location.href = '/onboarding'}>Start Onboarding</Button>
+        </div>
+    );
+
     const tasks = [
         {
             id: 1,
-            title: "Review 5 Medium Articles",
-            description: "AI Ghostwriter has generated 5 new articles for your personas.",
-            count: 5,
+            title: "Review Articles",
+            description: `You have ${data.stats.pendingArticles} articles waiting for approval.`,
+            count: data.stats.pendingArticles,
             icon: PenTool,
             status: "PENDING",
             color: "text-orange-500",
@@ -36,9 +89,9 @@ export default function DashboardPage() {
         },
         {
             id: 2,
-            title: "Approve 20 Cold Emails",
-            description: "SDR Agent has drafted personalized emails for newly found leads.",
-            count: 20,
+            title: "Review Emails",
+            description: `Agent has drafted ${data.stats.pendingEmails} personalized emails.`,
+            count: data.stats.pendingEmails,
             icon: Mail,
             status: "PENDING",
             color: "text-amber-500",
@@ -46,9 +99,9 @@ export default function DashboardPage() {
         },
         {
             id: 3,
-            title: "Validate 12 New Leads",
-            description: "Scraper found potential leads that need manual verification.",
-            count: 12,
+            title: "Validate Leads",
+            description: `${data.stats.totalLeads} leads found needing verification.`,
+            count: data.stats.totalLeads,
             icon: Users,
             status: "READY",
             color: "text-emerald-500",
@@ -56,32 +109,24 @@ export default function DashboardPage() {
         }
     ];
 
-    const recentContent = [
-        {
-            id: "c1",
-            title: "Mastering Next.js 15: The Future of Web Development",
-            type: "ARTICLE",
-            persona: "Tech Enthusiast",
-            date: "2 hours ago",
-            preview: "Next.js 15 introduces groundbreaking features that change how we think about server-side rendering...",
-            status: "PENDING"
-        },
-        {
-            id: "c2",
-            title: "Cold Outreach: Marketing Director at TechCorp",
-            type: "EMAIL",
-            persona: "Enterprise Lead",
-            date: "5 hours ago",
-            preview: "Hi [Name], I noticed TechCorp's recent expansion into the Asian market and wanted to share how...",
-            status: "PENDING"
-        }
-    ];
+    const pendingReview = data.config.contents.filter((c: any) => c.status === "PENDING");
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome back, Art!</h1>
-                <p className="text-muted-foreground">Here's what's happening with your agents today.</p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight mb-2">Workspace Dashboard</h1>
+                    <p className="text-muted-foreground italic">
+                        Targeting {data.config.targetAudience} for {data.config.businessUrl}
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    {data.config.personas.map((p: any) => (
+                        <Badge key={p.id} variant="secondary" className="bg-white/5 border-white/10 text-[10px]">
+                            {p.name}
+                        </Badge>
+                    ))}
+                </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
@@ -112,7 +157,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between">
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Clock className="w-5 h-5 text-primary" />
-                            Pending Review
+                            Recent Generation
                         </h2>
                         <Button variant="ghost" size="sm" className="text-xs text-primary underline-offset-4 hover:underline">
                             View All
@@ -120,36 +165,45 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="space-y-4">
-                        {recentContent.map((content) => (
+                        {pendingReview.length === 0 ? (
+                            <div className="p-12 text-center glass rounded-2xl border-dashed border-white/10">
+                                <p className="text-muted-foreground">All caught up! No pending content.</p>
+                            </div>
+                        ) : pendingReview.slice(0, 5).map((content: any) => (
                             <Card key={content.id} className="bg-white/[0.02] border-white/5 overflow-hidden">
                                 <CardContent className="p-0">
                                     <div className="p-5 space-y-3">
-                                        <div className="flex items-start justify-between">
+                                        <div className="flex items-start justify-between gap-4">
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
                                                         {content.type}
                                                     </Badge>
-                                                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{content.date}</span>
+                                                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                                                        {new Date(content.createdAt).toLocaleDateString()}
+                                                    </span>
                                                 </div>
-                                                <h3 className="font-semibold leading-none">{content.title}</h3>
+                                                <h3 className="font-semibold leading-tight">{content.title}</h3>
                                             </div>
-                                            <Badge className="bg-orange-500/20 text-orange-400 border-none">
+                                            <Badge className="shrink-0 bg-orange-500/20 text-orange-400 border-none">
                                                 PENDING
                                             </Badge>
                                         </div>
                                         <p className="text-sm text-muted-foreground line-clamp-2 italic">
-                                            "{content.preview}"
+                                            "{content.body}"
                                         </p>
-                                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                            <Users className="w-3 h-3" />
-                                            Target Persona: <span className="text-foreground font-medium">{content.persona}</span>
-                                        </div>
+                                        {content.persona && (
+                                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                                <Users className="w-3 h-3" />
+                                                Persona: <span className="text-foreground font-medium">{content.persona.name}</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex border-t border-white/5 divide-x divide-white/5">
                                         <Button
                                             variant="ghost"
                                             className="flex-1 rounded-none h-11 text-xs hover:bg-emerald-500/10 hover:text-emerald-500"
+                                            onClick={() => approveContent(content.id)}
                                         >
                                             <ThumbsUp className="w-3.5 h-3.5 mr-2" />
                                             Approve
@@ -157,7 +211,7 @@ export default function DashboardPage() {
                                         <Button
                                             variant="ghost"
                                             className="flex-1 rounded-none h-11 text-xs hover:bg-primary/10 hover:text-primary"
-                                            onClick={() => copyToClipboard(content.preview)}
+                                            onClick={() => copyToClipboard(content.body)}
                                         >
                                             <Copy className="w-3.5 h-3.5 mr-2" />
                                             Copy
@@ -188,19 +242,19 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <p className="text-sm font-medium">Your agents are working overtime.</p>
+                                <p className="text-sm font-medium">System fully operational.</p>
                                 <p className="text-xs text-muted-foreground max-w-xs">
-                                    Automated research has saved you 12.5 hours this week compared to manual workflows.
+                                    Your agents are monitoring trends for <span className="text-primary font-bold">{data.config.targetAudience}</span>.
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4 w-full">
-                                <div className="bg-white/5 p-4 rounded-xl text-left">
+                                <div className="bg-white/5 p-4 rounded-xl text-left border border-white/5">
                                     <span className="text-[10px] text-muted-foreground uppercase">Articles</span>
-                                    <p className="text-xl font-bold">142</p>
+                                    <p className="text-xl font-bold">{data.config.contents.filter((c: any) => c.type === "ARTICLE").length}</p>
                                 </div>
-                                <div className="bg-white/5 p-4 rounded-xl text-left">
+                                <div className="bg-white/5 p-4 rounded-xl text-left border border-white/5">
                                     <span className="text-[10px] text-muted-foreground uppercase">Leads Found</span>
-                                    <p className="text-xl font-bold">893</p>
+                                    <p className="text-xl font-bold">{data.stats.totalLeads}</p>
                                 </div>
                             </div>
                         </CardContent>

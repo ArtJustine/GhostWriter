@@ -7,8 +7,12 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // For now, just redirect to onboarding
-    router.push("/onboarding");
+    const configId = localStorage.getItem("ghostwriter_config_id");
+    if (configId) {
+      router.push("/dashboard");
+    } else {
+      router.push("/onboarding");
+    }
   }, [router]);
 
   return (
