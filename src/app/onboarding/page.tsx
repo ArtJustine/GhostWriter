@@ -11,6 +11,9 @@ import { Flame, ArrowRight, ArrowLeft, Check, Plus, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { auth } from "@/lib/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+
 export default function OnboardingPage() {
     const [step, setStep] = useState(1);
     const router = useRouter();
@@ -18,6 +21,8 @@ export default function OnboardingPage() {
     const [formData, setFormData] = useState({
         businessUrl: "",
         targetAudience: "",
+        email: "",
+        password: "",
         personas: [
             { name: "Persona 1", description: "" },
             { name: "Persona 2", description: "" },
@@ -27,7 +32,13 @@ export default function OnboardingPage() {
         ],
     });
 
-    const nextStep = () => setStep((s) => s + 1);
+    const nextStep = () => {
+        if (step === 1 && (!formData.businessUrl || !formData.targetAudience)) {
+            toast.error("Please fill in all fields");
+            return;
+        }
+        setStep((s) => s + 1);
+    };
     const prevStep = () => setStep((s) => s - 1);
 
     const handlePersonaChange = (index: number, field: string, value: string) => {
@@ -37,22 +48,35 @@ export default function OnboardingPage() {
     };
 
     const handleSubmit = async () => {
-        const loadingToast = toast.loading("Setting up your workspace...");
+        if (!formData.email || !formData.password) {
+            toast.error("Please provide email and password");
+            return;
+        }
+
+        const loadingToast = toast.loading("Creating your account and workspace...");
 
         try {
+            // 1. Create Firebase User
+            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+            const userId = userCredential.user.uid;
+
+            // 2. Save Onboarding Data with linked userId
             const response = await fetch("/api/onboarding", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    userId
+                }),
             });
 
             const data = await response.json();
 
             if (data.success) {
-                // Store configId in localStorage for this session since we don't have Auth/Cookies yet
                 localStorage.setItem("ghostwriter_config_id", data.configId);
+                localStorage.setItem("ghostwriter_user_id", userId);
                 toast.dismiss(loadingToast);
-                toast.success("Workspace initialized!");
+                toast.success("Account created and workspace initialized!");
                 router.push("/dashboard");
             } else {
                 throw new Error(data.error || "Failed to initialize");
@@ -181,26 +205,45 @@ export default function OnboardingPage() {
                         >
                             <Card className="glass border-white/5">
                                 <CardHeader>
-                                    <CardTitle>Ready to Launch?</CardTitle>
-                                    <CardDescription>Your AI agents are ready to start researching and writing.</CardDescription>
+                                    <CardTitle>Create Your Account</CardTitle>
+                                    <CardDescription>Secure your workspace and AI agents.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-6 text-center">
-                                    <div className="p-6 rounded-full bg-primary/10 w-24 h-24 mx-auto flex items-center justify-center">
-                                        <Check className="w-12 h-12 text-primary" />
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            className="bg-white/5 border-white/10"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                        <p className="font-medium">Everything is set up!</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            We'll initialize your Ghostwriter, Scraper, and SDR skills immediately.
-                                        </p>
+                                        <Label htmlFor="password">Password</Label>
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            className="bg-white/5 border-white/10"
+                                            value={formData.password}
+                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        />
                                     </div>
-                                    <div className="flex gap-4">
-                                        <Button variant="outline" onClick={prevStep} className="flex-1 border-white/10">
-                                            Back
-                                        </Button>
-                                        <Button onClick={handleSubmit} className="flex-1 bg-primary hover:bg-primary/90">
-                                            Finalize Setup
-                                        </Button>
+                                    <div className="pt-4 space-y-4">
+                                        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm text-muted-foreground italic flex items-start gap-3">
+                                            <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                            By creating an account, we will immediately initialize your Ghostwriter, Scraper, and SDR agents based on your data.
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <Button variant="outline" onClick={prevStep} className="flex-1 border-white/10">
+                                                Back
+                                            </Button>
+                                            <Button onClick={handleSubmit} className="flex-1 bg-primary hover:bg-primary/90">
+                                                Create Account & Launch
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

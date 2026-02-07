@@ -12,6 +12,7 @@ datasource db {
 
 model UserConfig {
   id              String   @id @default(cuid())
+  userId          String?  @unique // Firebase UID
   businessUrl     String?
   targetAudience  String?
   onboarded       Boolean  @default(false)

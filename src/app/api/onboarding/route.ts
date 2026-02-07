@@ -4,10 +4,11 @@ import { GhostwriterSkill, ScraperSkill, SDRSkill } from "@/lib/agents/skills";
 
 export async function POST(req: Request) {
     try {
-        const { businessUrl, targetAudience, personas } = await req.json();
+        const { businessUrl, targetAudience, personas, userId } = await req.json();
 
         const config = await db.userConfig.create({
             data: {
+                userId,
                 businessUrl,
                 targetAudience,
                 onboarded: true,

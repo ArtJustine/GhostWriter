@@ -8,7 +8,10 @@ import {
     Flame,
     Mail,
     Zap,
+    LogOut,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 import {
     Sidebar,
     SidebarContent,
@@ -52,8 +55,24 @@ const items = [
     },
 ];
 
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 export function AppSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            localStorage.removeItem("ghostwriter_config_id");
+            localStorage.removeItem("ghostwriter_user_id");
+            router.push("/login");
+        } catch (error: any) {
+            console.error("Logout Error:", error);
+        }
+    };
 
     return (
         <Sidebar variant="sidebar" collapsible="icon" className="border-r border-white/5">
@@ -129,15 +148,25 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-            <SidebarFooter className="p-4 border-t border-white/5 mt-auto bg-black/20">
-                <div className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:justify-center">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-                        <Users className="w-4 h-4 text-primary" />
+            <SidebarFooter className="p-4 border-t border-white/5 mt-auto bg-black/50">
+                <div className="flex items-center justify-between gap-3 group-data-[collapsible=icon]:flex-col">
+                    <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center overflow-hidden">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                            <Users className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
+                            <span className="text-xs font-bold truncate">Art Gonzales</span>
+                            <span className="text-[9px] text-primary font-bold uppercase">Pro Tier</span>
+                        </div>
                     </div>
-                    <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-                        <span className="text-sm font-bold truncate">Art Gonzales</span>
-                        <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Pro Tier</span>
-                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleLogout}
+                        className="w-8 h-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    >
+                        <LogOut className="w-4 h-4" />
+                    </Button>
                 </div>
             </SidebarFooter>
         </Sidebar>
